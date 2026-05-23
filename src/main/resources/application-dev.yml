@@ -1,0 +1,21 @@
+spring:
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: create-drop
+
+  ai:
+    openai:
+      chat:
+        options:
+          model: gpt-4o-mini
+          temperature: 0.2
+
+logging:
+  level:
+    com.portfolio.frauddetection: DEBUG
+    org.springframework.web: DEBUG
+
+app:
+  fraud:
+    score-threshold: 0.6
