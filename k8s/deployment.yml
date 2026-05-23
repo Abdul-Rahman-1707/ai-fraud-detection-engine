@@ -1,0 +1,95 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fraud-detection-engine
+  labels:
+    app: fraud-detection
+    tier: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: fraud-detection
+  template:
+    metadata:
+      labels:
+        app: fraud-detection
+        tier: backend
+    spec:
+      containers:
+        - name: fraud-detection
+          image: fraud-detection-engine:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: SPRING_DATASOURCE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: fraud-detection-config
+                  key: db-url
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: fraud-detection-secrets
+                  key: db-username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: fraud-detection-secrets
+                  key: db-password
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              valueFrom:
+                configMapKeyRef:
+                  name: fraud-detection-config
+                  key: kafka-servers
+            - name: REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: fraud-detection-config
+                  key: redis-host
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: fraud-detection-secrets
+                  key: openai-api-key
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 15
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fraud-detection-service
+spec:
+  type: ClusterIP
+  selector:
+    app: fraud-detection
+  ports:
+    - port: 80
+      targetPort: 8080
+      protocol: TCP
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fraud-detection-config
+data:
+  db-url: "jdbc:postgresql://postgres-service:5432/fraud_detection"
+  kafka-servers: "kafka-service:9092"
+  redis-host: "redis-service"
